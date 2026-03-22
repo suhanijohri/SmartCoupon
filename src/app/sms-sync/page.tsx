@@ -1,43 +1,87 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
 import { extractCouponDetails } from "@/ai/flows/sms-extraction-and-parsing-flow"
 import { Navigation } from "@/components/Navigation"
 import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
 import { Card } from "@/components/ui/card"
-import { MessageSquare, RefreshCw, Smartphone, CheckCircle2, ShieldCheck, Share2, Clipboard } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
+import { 
+  MessageSquare, 
+  Smartphone, 
+  CheckCircle2, 
+  ShieldCheck, 
+  RefreshCw,
+  Lock,
+  ArrowRight,
+  Zap,
+  AlertCircle
+} from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { CouponCard } from "@/components/CouponCard"
 import { Coupon } from "@/types/coupon"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
 
 export default function SmsSyncPage() {
-  const [smsInput, setSmsInput] = useState("")
   const [isSyncing, setIsSyncing] = useState(false)
-  const [parsedCoupon, setParsedCoupon] = useState<Coupon | null>(null)
+  const [syncProgress, setSyncProgress] = useState(0)
+  const [showPermissionDialog, setShowPermissionDialog] = useState(false)
+  const [hasPermission, setHasPermission] = useState(false)
+  const [extractedCoupons, setExtractedCoupons] = useState<Coupon[]>([])
   const { toast } = useToast()
 
-  // Handle incoming shared text from Android (Simulation of Share Target)
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const sharedText = urlParams.get('text') || urlParams.get('body');
-    if (sharedText) {
-      setSmsInput(sharedText);
-      toast({
-        title: "Message Received",
-        description: "Successfully imported message from system share.",
-      });
+  const inboxSamples = [
+    "Your Domino's coupon PIZZA50 is valid until Sunday! Get 50% off on medium pizzas.",
+    "SWIGGYIT: Use code HUNGRY to get Rs. 100 flat off on orders above Rs. 400.",
+    "ZOMATO: Flat 20% off up to Rs. 120. Code: CRICKET.",
+    "Amazon: Big Sale! Use code SAVE200 for Rs. 200 off your next shopping spree."
+  ]
+
+  const startAutoSync = () => {
+    if (!hasPermission) {
+      setShowPermissionDialog(true)
+      return
     }
-  }, [toast]);
+    performSync()
+  }
 
-  const handleSync = async () => {
-    if (!smsInput.trim()) return
+  const handleGrantPermission = () => {
+    setHasPermission(true)
+    setShowPermissionDialog(false)
+    performSync()
+  }
 
+  const performSync = async () => {
     setIsSyncing(true)
+    setSyncProgress(0)
+    setExtractedCoupons([])
+
+    // Progress simulation
+    const interval = setInterval(() => {
+      setSyncProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval)
+          return 100
+        }
+        return prev + 2
+      })
+    }, 50)
+
     try {
-      const result = await extractCouponDetails({ smsContent: smsInput })
-      
-      const newCoupon: Coupon = {
+      // Simulate batch processing of inbox
+      const results = await Promise.all(
+        inboxSamples.map(msg => extractCouponDetails({ smsContent: msg }))
+      )
+
+      const newCoupons: Coupon[] = results.map((result, i) => ({
         id: Math.random().toString(36).substr(2, 9),
         brand: result.brand,
         couponCode: result.couponCode,
@@ -46,134 +90,154 @@ export default function SmsSyncPage() {
         expiryDate: result.expiryDate,
         category: 'Shopping', 
         source: 'SMS',
-        description: `Extracted from SMS: Save ${result.discountType === 'FLAT_AMOUNT' ? '₹' : ''}${result.discountValue}${result.discountType === 'PERCENTAGE' ? '%' : ''} at ${result.brand}.`
-      }
+        description: `Auto-extracted from your promotional inbox.`
+      }))
 
-      setParsedCoupon(newCoupon)
-      toast({
-        title: "Coupon Extracted!",
-        description: `Successfully found ${newCoupon.couponCode} for ${newCoupon.brand}.`,
-      })
+      // Delay for effect
+      setTimeout(() => {
+        setExtractedCoupons(newCoupons)
+        setIsSyncing(false)
+        toast({
+          title: "Sync Complete",
+          description: `Successfully extracted ${newCoupons.length} coupons from your inbox.`,
+        })
+      }, 2500)
+
     } catch (error) {
       toast({
-        title: "Extraction Failed",
-        description: "Could not parse details from this message.",
+        title: "Sync Failed",
+        description: "Could not read promotional messages at this time.",
         variant: "destructive"
       })
-    } finally {
       setIsSyncing(false)
     }
   }
-
-  const handlePaste = async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      setSmsInput(text);
-      toast({ description: "Pasted from clipboard" });
-    } catch (err) {
-      toast({ description: "Could not access clipboard", variant: "destructive" });
-    }
-  }
-
-  const sampleMessages = [
-    "Your Domino's coupon PIZZA50 is valid until Sunday! Get 50% off on medium pizzas.",
-    "SWIGGYIT: Use code HUNGRY to get Rs. 100 flat off on orders above Rs. 400. Exp 2024-12-01.",
-    "ZOMATO: Flat 20% off up to Rs. 120. Code: CRICKET. Valid on all restaurants."
-  ]
 
   return (
     <div className="min-h-screen pb-24">
       <header className="px-6 pt-12 pb-6 space-y-2">
         <h1 className="text-2xl font-black flex items-center gap-3">
-          SMS Sync <Smartphone className="h-6 w-6 text-primary" />
+          Smart Sync <Zap className="h-6 w-6 text-primary fill-primary" />
         </h1>
         <p className="text-sm text-muted-foreground font-medium">
-          Enable automatic extraction via PWA Share Target.
+          Automatically extract savings from your inbox.
         </p>
       </header>
 
       <div className="px-6 space-y-6">
-        <Card className="p-4 bg-primary/5 border-primary/20 space-y-3">
-          <div className="flex items-center gap-3">
-            <Share2 className="h-5 w-5 text-primary" />
-            <p className="text-xs font-bold uppercase">Pro Tip: Use Android Share</p>
-          </div>
-          <p className="text-[11px] text-muted-foreground leading-tight">
-            Once you install this app to your Home Screen, you can <b>Share</b> any promotional SMS directly to "SmartCoupon Hub" to extract codes instantly.
-          </p>
-        </Card>
-
-        <Card className="p-6 bg-accent/5 border-accent/20 border-dashed">
+        {/* Permission Status */}
+        <Card className={`p-4 border-dashed transition-colors ${hasPermission ? 'bg-green-500/5 border-green-500/20' : 'bg-accent/5 border-accent/20'}`}>
           <div className="flex items-start gap-3">
-            <ShieldCheck className="h-6 w-6 text-accent shrink-0 mt-1" />
+            {hasPermission ? (
+              <ShieldCheck className="h-6 w-6 text-green-500 shrink-0 mt-1" />
+            ) : (
+              <Lock className="h-6 w-6 text-accent shrink-0 mt-1" />
+            )}
             <div className="space-y-1">
-              <p className="font-bold text-sm">Privacy Guaranteed</p>
+              <p className="font-bold text-sm">
+                {hasPermission ? "System Access Granted" : "Secure System Sync"}
+              </p>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Processing is isolated to promotional tags. We never store personal communication data.
+                {hasPermission 
+                  ? "Connected to promotional message stream. Monitoring for new deals." 
+                  : "Grant permission to let SmartCoupon scan your SMS for promotional codes."}
               </p>
             </div>
           </div>
         </Card>
 
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between px-1">
-              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Message Content
-              </label>
-              <Button variant="ghost" size="sm" onClick={handlePaste} className="h-6 text-[10px] gap-1 px-2">
-                <Clipboard className="h-3 w-3" /> PASTE
-              </Button>
+        {/* Sync Action */}
+        {!isSyncing && extractedCoupons.length === 0 && (
+          <div className="py-8 text-center space-y-6">
+            <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+              <Smartphone className="h-10 w-10 text-primary" />
             </div>
-            <Textarea 
-              value={smsInput}
-              onChange={(e) => setSmsInput(e.target.value)}
-              placeholder="Paste or share a promotional SMS here..."
-              className="min-h-[120px] bg-card border-border/10 focus:ring-primary rounded-xl text-sm"
-            />
-          </div>
-
-          <Button 
-            onClick={handleSync}
-            disabled={isSyncing || !smsInput}
-            className="w-full h-12 font-bold orange-gradient text-white border-none shadow-lg shadow-primary/20"
-          >
-            {isSyncing ? (
-              <RefreshCw className="h-5 w-5 animate-spin mr-2" />
-            ) : (
-              <MessageSquare className="h-5 w-5 mr-2" />
-            )}
-            EXTRACT SAVINGS
-          </Button>
-        </div>
-
-        {parsedCoupon && (
-          <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h3 className="text-sm font-bold flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-primary" />
-              Extraction Result
-            </h3>
-            <CouponCard coupon={parsedCoupon} />
+            <div className="space-y-2">
+              <h2 className="text-lg font-bold">Inbox Auto-Reader</h2>
+              <p className="text-xs text-muted-foreground max-w-[240px] mx-auto">
+                Our AI scans for keywords like "OFF", "CODE", and "EXPIRY" to pull deals automatically.
+              </p>
+            </div>
+            <Button 
+              onClick={startAutoSync}
+              className="w-full h-14 text-lg font-black orange-gradient rounded-2xl shadow-xl shadow-primary/20"
+            >
+              START AUTO-SYNC
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
           </div>
         )}
 
-        <div className="pt-4 space-y-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">
-            Try with Samples
-          </h3>
-          <div className="space-y-2">
-            {sampleMessages.map((msg, i) => (
-              <button 
-                key={i}
-                onClick={() => setSmsInput(msg)}
-                className="w-full text-left p-3 text-xs bg-muted/30 hover:bg-muted/50 rounded-lg border border-border/5 transition-colors line-clamp-2"
-              >
-                "{msg}"
-              </button>
-            ))}
+        {/* Syncing State */}
+        {isSyncing && (
+          <div className="space-y-6 py-12 text-center animate-in fade-in duration-500">
+            <div className="relative w-24 h-24 mx-auto">
+              <RefreshCw className="h-24 w-24 text-primary animate-spin opacity-20" />
+              <Smartphone className="h-10 w-10 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+            </div>
+            <div className="space-y-3">
+              <p className="font-black text-xl animate-pulse">Scanning Messages...</p>
+              <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">
+                Identifying Promotional Tags
+              </p>
+              <div className="max-w-[200px] mx-auto">
+                <Progress value={syncProgress} className="h-1" />
+              </div>
+            </div>
           </div>
+        )}
+
+        {/* Results */}
+        {extractedCoupons.length > 0 && !isSyncing && (
+          <div className="space-y-4 animate-in slide-in-from-bottom-8 duration-700">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                Found {extractedCoupons.length} New Coupons
+              </h3>
+              <Button variant="ghost" size="sm" onClick={performSync} className="text-xs font-bold gap-1">
+                <RefreshCw className="h-3 w-3" /> RE-SCAN
+              </Button>
+            </div>
+            <div className="space-y-4">
+              {extractedCoupons.map((coupon) => (
+                <CouponCard key={coupon.id} coupon={coupon} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Privacy Note */}
+        <div className="pt-4 flex items-center gap-2 text-[10px] text-muted-foreground justify-center">
+          <AlertCircle className="h-3 w-3" />
+          Only messages with promotional signatures are processed locally.
         </div>
       </div>
+
+      {/* Permission Dialog */}
+      <Dialog open={showPermissionDialog} onOpenChange={setShowPermissionDialog}>
+        <DialogContent className="max-w-[320px] rounded-3xl p-6 border-none">
+          <DialogHeader className="space-y-4 items-center text-center">
+            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center">
+              <MessageSquare className="h-8 w-8 text-primary" />
+            </div>
+            <div className="space-y-1">
+              <DialogTitle className="text-xl font-black">Allow Access?</DialogTitle>
+              <DialogDescription className="text-xs font-medium">
+                SmartCoupon Hub needs permission to read and manage your SMS messages to automatically detect coupon codes.
+              </DialogDescription>
+            </div>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 mt-4 sm:flex-col">
+            <Button onClick={handleGrantPermission} className="w-full h-12 font-bold orange-gradient rounded-xl border-none">
+              ALLOW ACCESS
+            </Button>
+            <Button variant="ghost" onClick={() => setShowPermissionDialog(false)} className="w-full font-bold text-muted-foreground">
+              DENY
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Navigation />
     </div>
