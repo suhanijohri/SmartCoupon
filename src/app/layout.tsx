@@ -1,10 +1,24 @@
-import type {Metadata} from 'next';
+import type {Metadata, Viewport} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
   title: 'SmartCoupon Hub',
   description: 'Intelligent coupon recommendations and SMS parsing.',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'SmartCoupon',
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#ff6a00',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
