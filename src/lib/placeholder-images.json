@@ -1,3 +1,40 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "dominos",
+      "description": "Domino's Pizza Brand Logo",
+      "imageUrl": "https://picsum.photos/seed/dominos/400/400",
+      "imageHint": "pizza brand"
+    },
+    {
+      "id": "amazon",
+      "description": "Amazon Brand Logo",
+      "imageUrl": "https://picsum.photos/seed/amazon/400/400",
+      "imageHint": "shopping brand"
+    },
+    {
+      "id": "starbucks",
+      "description": "Starbucks Coffee Logo",
+      "imageUrl": "https://picsum.photos/seed/starbucks/400/400",
+      "imageHint": "coffee brand"
+    },
+    {
+      "id": "food-category",
+      "description": "Food category background",
+      "imageUrl": "https://picsum.photos/seed/food/800/400",
+      "imageHint": "delicious food"
+    },
+    {
+      "id": "travel-category",
+      "description": "Travel category background",
+      "imageUrl": "https://picsum.photos/seed/travel/800/400",
+      "imageHint": "scenic travel"
+    },
+    {
+      "id": "shopping-category",
+      "description": "Shopping category background",
+      "imageUrl": "https://picsum.photos/seed/shopping/800/400",
+      "imageHint": "shopping mall"
+    }
+  ]
 }
